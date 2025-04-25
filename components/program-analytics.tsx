@@ -30,21 +30,46 @@ interface ProgramInteraction {
   uniqueWallets: number;
 }
 
-interface WalletProgram {
+interface TopProgramData {
   programId: string;
-  interactionCount: number;
+  totalTransactions: number;
+  uniqueWallets: number;
 }
 
 export function ProgramAnalytics() {
   const [programId, setProgramId] = useState("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
   const [programData, setProgramData] = useState<ProgramUsage | null>(null)
   const [interactions, setInteractions] = useState<ProgramInteraction[]>([])
-  const [topPrograms, setTopPrograms] = useState<WalletProgram[]>([])
+  const [topPrograms, setTopPrograms] = useState<TopProgramData[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Common program IDs to check
+  const commonProgramIds = [
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", // Token Program
+    "11111111111111111111111111111111", // System Program
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL", // Associated Token
+    "ComputeBudget111111111111111111111111111111", // Compute Budget
+    "M2mx93ekt1fmXSVkTrUL9xVFHkmME8HTUi5Cyc5aF7K", // Magic Eden v2
+    "hausS13jsjafwWwGqZTUQRmWyvyxn9EQpqMwV1PBBmk", // Auction House
+  ]
+
+  const validateProgramId = (id: string): boolean => {
+    // Check if the program ID is a valid base58 string
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/
+    return base58Regex.test(id)
+  }
 
   const loadProgramData = async () => {
     if (!programId) return
+    setError(null)
     setIsLoading(true)
+
+    if (!validateProgramId(programId)) {
+      setError("Invalid program ID. Please enter a valid base58 program ID.")
+      setIsLoading(false)
+      return
+    }
 
     try {
       // Get program usage data
@@ -55,19 +80,34 @@ export function ProgramAnalytics() {
       const interactionsData = await api.getProgramInteractions(programId)
       setInteractions(interactionsData)
 
-      // Get wallet programs (for comparison)
-      try {
-        const programs = await api.getWalletPrograms(programId)
-        setTopPrograms(programs)
-      } catch (error) {
-        console.error("Error fetching wallet programs:", error)
-        setTopPrograms([])
+      // Load data for common programs if this is one of them
+      if (commonProgramIds.includes(programId)) {
+        const promises = commonProgramIds
+          .filter(id => id !== programId) // Skip current program
+          .map(id => api.getProgramUsage(id))
+        
+        const results = await Promise.allSettled(promises)
+        const successfulResults = results
+          .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+          .map(result => result.value)
+        
+        // Combine all program data including current program
+        const allProgramData = [...successfulResults, usage]
+          .map(data => ({
+            programId: data.programId,
+            totalTransactions: data.totalTransactions,
+            uniqueWallets: data.uniqueWallets
+          }))
+          .sort((a, b) => b.totalTransactions - a.totalTransactions)
+        
+        setTopPrograms(allProgramData)
       }
     } catch (error) {
       console.error("Error loading program data:", error)
       setProgramData(null)
       setInteractions([])
       setTopPrograms([])
+      setError("Failed to load program data. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -87,7 +127,7 @@ export function ProgramAnalytics() {
     name: `Instruction Type ${index + 1}`,
     value: (item.count / (programData?.totalTransactions || 1)) * 100,
     count: item.count,
-    data: item.data
+    data: item.data.slice(0, 30) + (item.data.length > 30 ? '...' : '')
   })) || []
 
   return (
@@ -106,6 +146,12 @@ export function ProgramAnalytics() {
           {isLoading ? "Loading..." : "Load Program"}
         </Button>
       </div>
+
+      {error && (
+        <div className="text-sm text-red-500">
+          {error}
+        </div>
+      )}
 
       {programData && (
         <Card>
@@ -186,7 +232,18 @@ export function ProgramAnalytics() {
                       index="name"
                       category="value"
                       colors={["#6366f1", "#8b5cf6", "#d946ef", "#ec4899", "#f43f5e"]}
-                      valueFormatter={(value) => `${value.toFixed(1)}%`}
+                      valueFormatter={(value) => {
+                        const item = instructionTypes.find(i => i.value === value);
+                        if (!item) return `${value.toFixed(1)}%`;
+                        return [
+                          `Instruction: ${item.name}`,
+                          `Percentage: ${value.toFixed(1)}%`,
+                          `Transactions: ${item.count.toLocaleString()}`,
+                          '───────────────',
+                          `Data:`,
+                          item.data
+                        ].join('\n');
+                      }}
                       showLegend={true}
                       className="h-full"
                     />
@@ -215,9 +272,7 @@ export function ProgramAnalytics() {
                             <TableCell className="text-right">{instruction.count.toLocaleString()}</TableCell>
                             <TableCell className="text-right">{instruction.value.toFixed(1)}%</TableCell>
                             <TableCell className="font-mono text-xs text-muted-foreground">
-                              {instruction.data.length > 30 
-                                ? `${instruction.data.slice(0, 30)}...` 
-                                : instruction.data}
+                              {instruction.data}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -240,25 +295,36 @@ export function ProgramAnalytics() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Program ID</TableHead>
-                    <TableHead>Interactions</TableHead>
+                    <TableHead className="text-right">Transactions</TableHead>
+                    <TableHead className="text-right">Unique Wallets</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {topPrograms.length > 0 ? (
                     topPrograms.map((program, index) => (
-                      <TableRow key={index}>
+                      <TableRow key={program.programId}>
                         <TableCell className="font-medium">
-                          <Link href={`/?address=${program.programId}&tab=Wallet Overview`} className="hover:text-primary hover:underline">
-                            {program.programId.slice(0, 6)}...{program.programId.slice(-6)}
+                          <Link 
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              setProgramId(program.programId)
+                              loadProgramData()
+                            }}
+                            className="hover:text-primary hover:underline"
+                            title={program.programId}
+                          >
+                            {program.programId.slice(0, 6) + '...' + program.programId.slice(-6)}
                           </Link>
                         </TableCell>
-                        <TableCell>{program.interactionCount.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{program.totalTransactions.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{program.uniqueWallets.toLocaleString()}</TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center text-muted-foreground">
-                        No program data available
+                      <TableCell colSpan={3} className="text-center text-muted-foreground">
+                        {isLoading ? "Loading program data..." : "No program data available"}
                       </TableCell>
                     </TableRow>
                   )}

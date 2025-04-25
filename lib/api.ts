@@ -57,6 +57,18 @@ export interface WalletTransactionResponse {
   }>;
 }
 
+export interface TopProgramResponse {
+  programId: string;
+  transactionCount: number;
+  uniqueUsers: number;
+  growthPercentage: number;
+}
+
+export interface TopWalletResponse {
+  address: string;
+  transactionCount: number;
+}
+
 export const api = {
   // Transaction endpoints
   getTransactions: async (limit: number = 10, offset: number = 0): Promise<Transaction[]> => {
@@ -193,15 +205,26 @@ export const api = {
 
   // Program endpoints
   getProgramUsage: async (programId: string) => {
-    const response = await fetch(`${API_BASE_URL}/programs/usage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ programId }),
-    });
-    if (!response.ok) throw new Error('Failed to fetch program usage');
-    return response.json();
+    try {
+      const response = await fetch(`${API_BASE_URL}/programs/usage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ programId }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Program usage error:', errorData);
+        throw new Error(`Failed to fetch program usage: ${response.status} ${response.statusText}`);
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error('Error in getProgramUsage:', error);
+      throw error;
+    }
   },
 
   getProgramInteractions: async (programId: string, days: number = 30) => {
@@ -214,5 +237,51 @@ export const api = {
     });
     if (!response.ok) throw new Error('Failed to fetch program interactions');
     return response.json();
+  },
+
+  getTopPrograms: async (): Promise<TopProgramResponse[]> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/analytics/top-programs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Top programs error:', errorData);
+        throw new Error(`Failed to fetch top programs: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error in getTopPrograms:', error);
+      throw error;
+    }
+  },
+
+  getTopWallets: async (): Promise<TopWalletResponse[]> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/analytics/top-wallets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Top wallets error:', errorData);
+        throw new Error(`Failed to fetch top wallets: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error in getTopWallets:', error);
+      throw error;
+    }
   },
 }; 

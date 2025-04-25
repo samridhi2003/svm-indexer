@@ -6,104 +6,75 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { BarChart } from "@/components/ui/chart"
 import Link from "next/link"
-
-// Mock leaderboard data
-const topPrograms = [
-  {
-    id: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-    name: "Token Program",
-    transactions: 1245789,
-    users: 45678,
-    growth: "+5.2%",
-  },
-  {
-    id: "11111111111111111111111111111111",
-    name: "System Program",
-    transactions: 987654,
-    users: 38765,
-    growth: "+3.7%",
-  },
-  {
-    id: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
-    name: "Associated Token Account Program",
-    transactions: 854321,
-    users: 32456,
-    growth: "+4.1%",
-  },
-  {
-    id: "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
-    name: "Memo Program",
-    transactions: 743210,
-    users: 28765,
-    growth: "+2.8%",
-  },
-  {
-    id: "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
-    name: "Metaplex Token Metadata Program",
-    transactions: 621098,
-    users: 21543,
-    growth: "+6.3%",
-  },
-]
-
-const topWallets = [
-  {
-    address: "8xh3hBrUwgCoPLGNzd88vwzAQm2M3iSoPrNvb51G74xQ",
-    transactions: 12457,
-    balance: "1,245,789 SOL",
-    type: "Exchange",
-  },
-  {
-    address: "DRpbCBMxVnDK7maPM5tGv6MvB3v1sRMC86PZ8okm21hy",
-    transactions: 9876,
-    balance: "987,654 SOL",
-    type: "Whale",
-  },
-  {
-    address: "9xVte8qcmgQWVUHmHXKgV6qY1wqmzRQBP9xQnpYnRmHT",
-    transactions: 8543,
-    balance: "854,321 SOL",
-    type: "Exchange",
-  },
-  {
-    address: "7ZmLWMqWJTwzN7Tk8yUc9mLiMVjVHZvxWvJH7dU89vHy",
-    transactions: 7432,
-    balance: "743,210 SOL",
-    type: "DAO",
-  },
-  {
-    address: "3qw9K8mL5JZqVCiE2kzP7vPRf7A5Q8LHkX2pVwpVxm2X",
-    transactions: 6210,
-    balance: "621,098 SOL",
-    type: "Whale",
-  },
-]
-
-// Chart data for program comparison
-const programComparisonData = [
-  {
-    program: "Token Program",
-    transactions: 1245789,
-  },
-  {
-    program: "System Program",
-    transactions: 987654,
-  },
-  {
-    program: "Associated Token",
-    transactions: 854321,
-  },
-  {
-    program: "Memo Program",
-    transactions: 743210,
-  },
-  {
-    program: "Metaplex",
-    transactions: 621098,
-  },
-]
+import { useEffect, useState } from "react"
+import { api, TopProgramResponse, TopWalletResponse } from "@/lib/api"
 
 export function Leaderboards() {
+  const [topPrograms, setTopPrograms] = useState<TopProgramResponse[]>([])
+  const [topWallets, setTopWallets] = useState<TopWalletResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const [programs, wallets] = await Promise.all([
+          api.getTopPrograms(),
+          api.getTopWallets()
+        ])
+        setTopPrograms(programs)
+        setTopWallets(wallets)
+      } catch (err) {
+        console.error('Error fetching data:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch data')
+        setTopPrograms([])
+        setTopWallets([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p>Loading data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-4">
+        <div className="text-red-500 mb-2">Error loading data</div>
+        <div className="text-sm text-muted-foreground">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  const programComparisonData = topPrograms.map(program => ({
+    name: `${program.programId.slice(0, 8)}...${program.programId.slice(-4)}`,
+    value: program.transactionCount
+  }))
+
+  const walletComparisonData = topWallets.map(wallet => ({
+    name: `${wallet.address.slice(0, 8)}...${wallet.address.slice(-4)}`,
+    value: wallet.transactionCount
+  }))
+
   return (
     <div className="space-y-4">
       <Tabs defaultValue="programs">
@@ -122,14 +93,14 @@ export function Leaderboards() {
                 <div className="h-[300px]">
                   <BarChart
                     data={programComparisonData}
-                    index="program"
-                    categories={["transactions"]}
+                    index="name"
+                    categories={["value"]}
                     colors={["#6366f1"]}
                     valueFormatter={(value) => `${value.toLocaleString()} txs`}
                     showLegend={false}
-                    showGridLines={false}
-                    startEndOnly={false}
-                    layout="vertical"
+                    showGridLines={true}
+                    startEndOnly={true}
+                    layout="horizontal"
                     className="h-full"
                   />
                 </div>
@@ -156,19 +127,16 @@ export function Leaderboards() {
                       <TableRow key={index}>
                         <TableCell>
                           <div className="font-medium">
-                            <Link href={`/programs/${program.id}`} className="hover:text-primary hover:underline">
-                              {program.name}
+                            <Link href={`/programs/${program.programId}`} className="hover:text-primary hover:underline">
+                              {program.programId}
                             </Link>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {program.id.slice(0, 8)}...{program.id.slice(-4)}
-                          </div>
                         </TableCell>
-                        <TableCell>{program.transactions.toLocaleString()}</TableCell>
-                        <TableCell>{program.users.toLocaleString()}</TableCell>
+                        <TableCell>{program.transactionCount.toLocaleString()}</TableCell>
+                        <TableCell>{program.uniqueUsers.toLocaleString()}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-emerald-500">
-                            {program.growth}
+                          <Badge variant="outline" className={program.growthPercentage > 0 ? "text-emerald-500" : "text-red-500"}>
+                            {program.growthPercentage > 0 ? "+" : ""}{program.growthPercentage}%
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -180,42 +148,61 @@ export function Leaderboards() {
           </div>
         </TabsContent>
         <TabsContent value="wallets">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Wallets</CardTitle>
-              <CardDescription>Most active wallets on the blockchain</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Transactions</TableHead>
-                    <TableHead>Balance</TableHead>
-                    <TableHead>Type</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {topWallets.map((wallet, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        <div className="font-medium">
-                          <Link href={`/?address=${wallet.address}&tab=Wallet Overview`} className="hover:text-primary hover:underline">
-                            {wallet.address.slice(0, 8)}...{wallet.address.slice(-4)}
-                          </Link>
-                        </div>
-                      </TableCell>
-                      <TableCell>{wallet.transactions.toLocaleString()}</TableCell>
-                      <TableCell>{wallet.balance}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{wallet.type}</Badge>
-                      </TableCell>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Wallet Transaction Volume</CardTitle>
+                <CardDescription>Top 10 wallets by transaction count</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <BarChart
+                    data={walletComparisonData}
+                    index="name"
+                    categories={["value"]}
+                    colors={["#6366f1"]}
+                    valueFormatter={(value) => `${value.toLocaleString()} txs`}
+                    showLegend={false}
+                    showGridLines={true}
+                    startEndOnly={true}
+                    layout="horizontal"
+                    className="h-full"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Top Wallets</CardTitle>
+                <CardDescription>Most active wallets on the blockchain</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Wallet Address</TableHead>
+                      <TableHead className="text-right">Transaction Count</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {topWallets.map((wallet, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <div className="font-medium">
+                            <Link href={`/?address=${wallet.address}&tab=Wallet Overview`} className="hover:text-primary hover:underline">
+                              {wallet.address}
+                            </Link>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">{wallet.transactionCount.toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

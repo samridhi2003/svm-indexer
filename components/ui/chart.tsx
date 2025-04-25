@@ -12,9 +12,11 @@ import {
   PieChart,
   Pie,
   Cell,
+  Sector,
 } from "recharts"
 
 import { cn } from "@/lib/utils"
+import React from "react"
 
 interface ChartProps {
   data: any[]
@@ -41,6 +43,8 @@ export function BarChart({
   layout = "vertical",
   className,
 }: ChartProps) {
+  const chartId = React.useId();
+
   return (
     <ResponsiveContainer width="100%" height="100%" className={cn(className)}>
       <RechartsBarChart data={data} layout={layout}>
@@ -71,7 +75,7 @@ export function BarChart({
         )}
         {categories.map((category, i) => (
           <Bar
-            key={category}
+            key={`${chartId}-bar-${category}-${i}`}
             dataKey={category}
             fill={colors[i % colors.length]}
             radius={[4, 4, 0, 0]}
@@ -93,6 +97,8 @@ export function AreaChart({
   startEndOnly = true,
   className,
 }: ChartProps) {
+  const chartId = React.useId();
+
   return (
     <ResponsiveContainer width="100%" height="100%" className={cn(className)}>
       <RechartsAreaChart data={data}>
@@ -133,7 +139,7 @@ export function AreaChart({
         )}
         {categories.map((category, i) => (
           <Area
-            key={category}
+            key={`${chartId}-area-${category}-${i}`}
             type="monotone"
             dataKey={category}
             fill={colors[i % colors.length]}
@@ -182,11 +188,31 @@ export function DonutChart({
         <Tooltip
           formatter={valueFormatter}
           contentStyle={{
-            backgroundColor: "hsl(var(--background))",
-            border: "1px solid hsl(var(--border))",
+            backgroundColor: "rgba(0, 0, 0, 0.95)",
+            border: "none",
             borderRadius: "var(--radius)",
-            padding: "8px",
+            padding: "16px",
+            fontSize: "14px",
+            fontWeight: "500",
+            textAlign: "left",
+            minWidth: "200px",
+            whiteSpace: "pre-line",
+            lineHeight: "1.5",
+            color: "#ffffff !important"
           }}
+          wrapperStyle={{
+            outline: "none",
+            zIndex: 1000,
+            width: "auto",
+            maxWidth: "80%"
+          }}
+          labelStyle={{
+            color: "#ffffff !important"
+          }}
+          itemStyle={{
+            color: "#ffffff !important"
+          }}
+          allowEscapeViewBox={{ x: false, y: false }}
         />
         {showLegend && (
           <Legend
