@@ -9,6 +9,8 @@ import { AreaChart, DonutChart } from "@/components/ui/chart"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api } from "@/lib/api"
 import Link from "next/link"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Download, MessageSquare } from "lucide-react"
 
 interface ProgramUsage {
   programId: string;
@@ -113,6 +115,45 @@ export function ProgramAnalytics() {
     }
   }
 
+  const handleExport = () => {
+    if (!programData) return;
+    const json = JSON.stringify(programData, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `program-${programData.programId}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportToAI = (platform: 'chatgpt' | 'claude') => {
+    if (!programData) return;
+    const json = JSON.stringify(programData, null, 2);
+    
+    if (platform === 'chatgpt') {
+      const prompt = `Please analyze this blockchain program data and explain its key metrics, patterns, and insights:\n\n${json}`;
+      window.open(`https://chat.openai.com/?prompt=${encodeURIComponent(prompt)}`, '_blank');
+    } else {
+      // For Claude, we'll create a more structured prompt
+      const claudePrompt = `I have some blockchain program data that I'd like you to analyze. Here are the key metrics:\n\n` +
+        `Program ID: ${programData.programId}\n` +
+        `Total Transactions: ${programData.totalTransactions}\n` +
+        `Unique Wallets: ${programData.uniqueWallets}\n\n` +
+        `Here's the complete data in JSON format:\n\n${json}\n\n` +
+        `Please analyze this data and provide insights about:\n` +
+        `1. Transaction patterns and trends\n` +
+        `2. User engagement metrics\n` +
+        `3. Notable program activities\n` +
+        `4. Potential areas of interest or concern`;
+      
+      const claudeUrl = `https://claude.ai/chat?prompt=${encodeURIComponent(claudePrompt)}`;
+      window.open(claudeUrl, '_blank');
+    }
+  };
+
   useEffect(() => {
     loadProgramData()
   }, [])
@@ -142,9 +183,33 @@ export function ProgramAnalytics() {
             onChange={(e) => setProgramId(e.target.value)}
           />
         </div>
-        <Button onClick={loadProgramData} disabled={isLoading}>
-          {isLoading ? "Loading..." : "Load Program"}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={loadProgramData} disabled={isLoading}>
+            {isLoading ? "Loading..." : "Load Program"}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={!programData}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Download JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportToAI('chatgpt')}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Open in ChatGPT
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportToAI('claude')}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Open in Claude
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {error && (
@@ -153,187 +218,176 @@ export function ProgramAnalytics() {
         </div>
       )}
 
-      {programData && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Program Overview</CardTitle>
-            <CardDescription>{programData.programId}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Total Transactions</div>
-                <div className="text-2xl font-bold">{programData.totalTransactions.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Unique Wallets</div>
-                <div className="text-2xl font-bold">{programData.uniqueWallets.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Last Activity</div>
-                <div className="text-2xl font-bold">
-                  {programData.timeSeries.length > 0 
-                    ? new Date(programData.timeSeries[programData.timeSeries.length - 1].timestamp * 1000).toLocaleDateString() 
-                    : 'No activity'}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Tabs defaultValue="activity">
-        <TabsList>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="instructions">Instructions</TabsTrigger>
-          <TabsTrigger value="users">Top Programs</TabsTrigger>
-        </TabsList>
-        <TabsContent value="activity">
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+            <p>Loading program data...</p>
+          </div>
+        </div>
+      ) : programData && (
+        <>
           <Card>
             <CardHeader>
-              <CardTitle>Daily Transactions</CardTitle>
-              <CardDescription>Number of transactions per day</CardDescription>
+              <CardTitle>Program Overview</CardTitle>
+              <CardDescription>{programData.programId}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px]">
-                {dailyTransactions.length > 0 ? (
-                  <AreaChart
-                    data={dailyTransactions}
-                    index="date"
-                    categories={["value"]}
-                    colors={["#6366f1"]}
-                    valueFormatter={(value) => `${value.toLocaleString()} txs`}
-                    showLegend={false}
-                    showGridLines={false}
-                    startEndOnly={false}
-                    className="h-full"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-muted-foreground">
-                    No transaction data available
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Total Transactions</div>
+                  <div className="text-2xl font-bold">{programData.totalTransactions.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Unique Wallets</div>
+                  <div className="text-2xl font-bold">{programData.uniqueWallets.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Last Activity</div>
+                  <div className="text-2xl font-bold">
+                    {programData.timeSeries.length > 0 
+                      ? new Date(programData.timeSeries[programData.timeSeries.length - 1].timestamp * 1000).toLocaleDateString() 
+                      : 'No activity'}
                   </div>
-                )}
+                </div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-        <TabsContent value="instructions">
-          <Card>
-            <CardHeader>
-              <CardTitle>Instruction Types</CardTitle>
-              <CardDescription>Distribution of instruction types and their usage</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="h-[400px]">
-                  {instructionTypes.length > 0 ? (
-                    <DonutChart
-                      data={instructionTypes}
-                      index="name"
-                      category="value"
-                      colors={["#6366f1", "#8b5cf6", "#d946ef", "#ec4899", "#f43f5e"]}
-                      valueFormatter={(value) => {
-                        const item = instructionTypes.find(i => i.value === value);
-                        if (!item) return `${value.toFixed(1)}%`;
-                        return [
-                          `Instruction: ${item.name}`,
-                          `Percentage: ${value.toFixed(1)}%`,
-                          `Transactions: ${item.count.toLocaleString()}`,
-                          '───────────────',
-                          `Data:`,
-                          item.data
-                        ].join('\n');
-                      }}
-                      showLegend={true}
-                      className="h-full"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-muted-foreground">
-                      No instruction data available
+
+          <Tabs defaultValue="activity">
+            <TabsList>
+              <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsTrigger value="instructions">Instructions</TabsTrigger>
+              <TabsTrigger value="users">Top Programs</TabsTrigger>
+            </TabsList>
+            <TabsContent value="activity">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Daily Transactions</CardTitle>
+                  <CardDescription>Number of transactions per day</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    {dailyTransactions.length > 0 ? (
+                      <AreaChart
+                        data={dailyTransactions}
+                        index="date"
+                        categories={["value"]}
+                        colors={["#6366f1"]}
+                        valueFormatter={(value) => `${value.toLocaleString()} txs`}
+                        showLegend={false}
+                        showGridLines={false}
+                        startEndOnly={false}
+                        className="h-full"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-muted-foreground">
+                        No transaction data available
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="instructions">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Instruction Types</CardTitle>
+                  <CardDescription>Distribution of instruction types and their usage</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="h-[400px]">
+                      {instructionTypes.length > 0 ? (
+                        <DonutChart
+                          data={instructionTypes}
+                          index="name"
+                          category="value"
+                          colors={["#6366f1", "#8b5cf6", "#d946ef", "#ec4899", "#f43f5e"]}
+                          valueFormatter={(value) => {
+                            const item = instructionTypes.find(i => i.value === value);
+                            if (!item) return `${value.toFixed(1)}%`;
+                            return `Instruction: ${item.name}\nPercentage: ${value.toFixed(1)}%\nTransactions: ${item.count.toLocaleString()}\n───────────────\nData: ${item.data}`;
+                          }}
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-muted-foreground">
+                          No instruction data available
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                
-                <div className="overflow-auto">
-                  {instructionTypes.length > 0 && (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead className="text-right">Count</TableHead>
-                          <TableHead className="text-right">%</TableHead>
-                          <TableHead>Data</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {instructionTypes.map((instruction, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="font-medium">{instruction.name}</TableCell>
-                            <TableCell className="text-right">{instruction.count.toLocaleString()}</TableCell>
-                            <TableCell className="text-right">{instruction.value.toFixed(1)}%</TableCell>
-                            <TableCell className="font-mono text-xs text-muted-foreground">
-                              {instruction.data}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Programs by Interaction</CardTitle>
-              <CardDescription>Programs with most interactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Program ID</TableHead>
-                    <TableHead className="text-right">Transactions</TableHead>
-                    <TableHead className="text-right">Unique Wallets</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {topPrograms.length > 0 ? (
-                    topPrograms.map((program, index) => (
-                      <TableRow key={program.programId}>
-                        <TableCell className="font-medium">
-                          <Link 
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              setProgramId(program.programId)
-                              loadProgramData()
-                            }}
-                            className="hover:text-primary hover:underline"
-                            title={program.programId}
-                          >
-                            {program.programId.slice(0, 6) + '...' + program.programId.slice(-6)}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-right">{program.totalTransactions.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">{program.uniqueWallets.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center text-muted-foreground">
-                        {isLoading ? "Loading program data..." : "No program data available"}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                    <div className="flex flex-col justify-center">
+                      {instructionTypes.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-muted-foreground/10">
+                                <th className="px-2 py-1 text-left font-semibold">Type</th>
+                                <th className="px-2 py-1 text-right font-semibold">Count</th>
+                                <th className="px-2 py-1 text-right font-semibold">%</th>
+                                <th className="px-2 py-1 text-left font-semibold">Data</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {instructionTypes.map((item, idx) => (
+                                <tr key={item.name} className="border-b border-muted-foreground/5">
+                                  <td className="px-2 py-1 flex items-center gap-2">
+                                    <span
+                                      className="inline-block w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: ["#6366f1", "#8b5cf6", "#d946ef", "#ec4899", "#f43f5e"][idx % 5] }}
+                                    ></span>
+                                    <span className="font-medium">{item.name}</span>
+                                  </td>
+                                  <td className="px-2 py-1 text-right">{item.count.toLocaleString()}</td>
+                                  <td className="px-2 py-1 text-right">{item.value.toFixed(1)}%</td>
+                                  <td className="px-2 py-1 font-mono truncate max-w-[120px]" title={item.data}>{item.data}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-muted-foreground">
+                          No instruction data available
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="users">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Programs</CardTitle>
+                  <CardDescription>Programs with the most transactions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    {topPrograms.length > 0 ? (
+                      <AreaChart
+                        data={topPrograms}
+                        index="programId"
+                        categories={["totalTransactions"]}
+                        colors={["#6366f1"]}
+                        valueFormatter={(value) => `${value.toLocaleString()} txs`}
+                        showLegend={false}
+                        showGridLines={false}
+                        startEndOnly={false}
+                        className="h-full"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-muted-foreground">
+                        No top program data available
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </div>
   )
 }

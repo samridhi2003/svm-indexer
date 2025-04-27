@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react"
 import Link from "next/link"
-import { ArrowLeft, Copy, ExternalLink, RefreshCw, Settings, Check } from "lucide-react"
+import { ArrowLeft, Copy, ExternalLink, RefreshCw, Settings, Check, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -79,6 +79,20 @@ export default function TransactionDetailsPage({ params }: { params: Promise<{ h
     fetchTransaction()
   }
 
+  const handleExport = () => {
+    if (!transaction) return;
+    const json = JSON.stringify(transaction, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transaction-${transaction.signature}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
@@ -138,6 +152,10 @@ export default function TransactionDetailsPage({ params }: { params: Promise<{ h
               <Button variant="outline" size="sm" className="gap-2" onClick={handleRefresh}>
                 <RefreshCw className="h-4 w-4" />
                 Refresh
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2" title="Export" onClick={handleExport} disabled={!transaction}>
+                <Download className="h-4 w-4" />
+                Export
               </Button>
             </div>
           </div>

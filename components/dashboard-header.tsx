@@ -51,18 +51,6 @@ export function DashboardHeader() {
         </Link>
 
         <nav className="hidden md:flex md:gap-6 lg:gap-8">
-          <Link href="/" className="text-sm font-medium hover:text-primary">
-            Cluster Stats
-          </Link>
-          <Link href="/transactions" className="text-sm font-medium hover:text-primary">
-            Supply
-          </Link>
-          <Link href="/wallet" className="text-sm font-medium hover:text-primary">
-            Inspector
-          </Link>
-          <Link href="/programs" className="text-sm font-medium hover:text-primary">
-            Transactions
-          </Link>
           <Link href="/leaderboards" className="text-sm font-medium hover:text-primary">
             Blocks
           </Link>

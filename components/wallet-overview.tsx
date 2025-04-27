@@ -9,6 +9,9 @@ import { Search } from "lucide-react"
 import { AreaChart, BarChart } from "@/components/ui/chart"
 import { api, Transaction, WalletTransactionResponse } from "@/lib/api"
 import { count } from "console"
+import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Download, MessageSquare } from "lucide-react"
 
 interface WalletData {
   address: string;
@@ -185,6 +188,89 @@ export function WalletOverview() {
 
   const activityData = processActivityData()
 
+  const bubbleData = walletData?.tokens.map((token, idx) => ({
+    x: idx + 1,
+    y: parseFloat(String(token.value ?? 0).replace(/[^0-9.]/g, "")) || 0,
+    z: parseFloat(String(token.amount ?? 0).replace(/[^0-9.]/g, "")) || 0,
+    name: token.name || token.mint,
+    mint: token.mint,
+    amount: String(token.amount ?? 0),
+    value: String(token.value ?? 0),
+  })) || [];
+
+  function BubbleMapChart() {
+    if (!bubbleData.length) {
+      return <div className="flex h-full items-center justify-center text-muted-foreground">No token data available</div>;
+    }
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <ScatterChart>
+          <XAxis dataKey="x" name="Token Index" tick={false} />
+          <YAxis dataKey="y" name="Value" />
+          <ZAxis dataKey="z" range={[60, 400]} name="Amount" />
+          <Tooltip 
+            cursor={{ strokeDasharray: '3 3' }}
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                const d = payload[0].payload;
+                return (
+                  <div className="rounded bg-background p-2 text-xs shadow">
+                    <div><b>{d.name}</b></div>
+                    <div>Mint: {d.mint}</div>
+                    <div>Amount: {d.amount}</div>
+                    <div>Value: {d.value}</div>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Scatter data={bubbleData} fill="#6366f1" name="Tokens" />
+        </ScatterChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  const handleExport = () => {
+    if (!walletData) return;
+    const json = JSON.stringify(walletData, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `wallet-${walletData.address}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportToAI = (platform: 'chatgpt' | 'claude') => {
+    if (!walletData) return;
+    const json = JSON.stringify(walletData, null, 2);
+    
+    if (platform === 'chatgpt') {
+      const prompt = `Please analyze this blockchain wallet data and explain its key metrics, patterns, and insights:\n\n${json}`;
+      window.open(`https://chat.openai.com/?prompt=${encodeURIComponent(prompt)}`, '_blank');
+    } else {
+      // For Claude, we'll create a more structured prompt
+      const claudePrompt = `I have some blockchain wallet data that I'd like you to analyze. Here are the key metrics:\n\n` +
+        `Wallet Address: ${walletData.address}\n` +
+        `Balance: ${formatAmount(walletData.lamports)}\n` +
+        `USD Value: ${walletData.usdValue}\n` +
+        `Number of Tokens: ${walletData.tokens.length}\n\n` +
+        `Here's the complete data in JSON format:\n\n${json}\n\n` +
+        `Please analyze this data and provide insights about:\n` +
+        `1. Wallet activity and transaction patterns\n` +
+        `2. Token holdings and distribution\n` +
+        `3. Value trends and portfolio composition\n` +
+        `4. Notable activities or patterns`;
+      
+      const claudeUrl = `https://claude.ai/chat?prompt=${encodeURIComponent(claudePrompt)}`;
+      window.open(claudeUrl, '_blank');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -197,9 +283,33 @@ export function WalletOverview() {
             onChange={(e) => setAddress(e.target.value)}
           />
         </div>
-        <Button onClick={loadWalletData} disabled={isLoading}>
-          {isLoading ? 'Loading...' : 'Load Wallet'}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={loadWalletData} disabled={isLoading}>
+            {isLoading ? 'Loading...' : 'Load Wallet'}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={!walletData}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Download JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportToAI('chatgpt')}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Open in ChatGPT
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportToAI('claude')}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Open in Claude
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {walletData && (
@@ -251,6 +361,7 @@ export function WalletOverview() {
               <TabsTrigger value="balance">Balance History</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
               <TabsTrigger value="tokens">Tokens</TabsTrigger>
+              <TabsTrigger value="bubble">Bubble Map</TabsTrigger>
             </TabsList>
             <TabsContent value="balance">
               <Card>
@@ -338,6 +449,17 @@ export function WalletOverview() {
                       </div>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="bubble">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Token Bubble Map</CardTitle>
+                  <CardDescription>Each bubble represents a token. Size = amount, Y = value.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BubbleMapChart />
                 </CardContent>
               </Card>
             </TabsContent>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Calendar, ExternalLink, Filter, Search, RefreshCw, Settings } from "lucide-react"
+import { Calendar, ExternalLink, Filter, Search, RefreshCw, Download, MessageSquare } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -96,6 +96,45 @@ export function TransactionsList() {
     }
   }
 
+  // Export handler
+  const handleExport = () => {
+    if (!transactions.length) return;
+    const json = JSON.stringify(transactions, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transactions.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportToAI = (platform: 'chatgpt' | 'claude') => {
+    if (!transactions.length) return;
+    const json = JSON.stringify(transactions, null, 2);
+    
+    if (platform === 'chatgpt') {
+      const prompt = `Please analyze these blockchain transactions and explain their key patterns, trends, and insights:\n\n${json}`;
+      window.open(`https://chat.openai.com/?prompt=${encodeURIComponent(prompt)}`, '_blank');
+    } else {
+      // For Claude, we'll create a more structured prompt
+      const claudePrompt = `I have some blockchain transaction data that I'd like you to analyze. Here are the key metrics:\n\n` +
+        `Number of Transactions: ${transactions.length}\n` +
+        `Time Range: ${new Date(Number(transactions[0].blockTime) * 1000).toLocaleString()} to ${new Date(Number(transactions[transactions.length - 1].blockTime) * 1000).toLocaleString()}\n\n` +
+        `Here's the complete data in JSON format:\n\n${json}\n\n` +
+        `Please analyze this data and provide insights about:\n` +
+        `1. Transaction patterns and frequency\n` +
+        `2. Value flows and amounts\n` +
+        `3. Notable transaction types or patterns\n` +
+        `4. Potential anomalies or interesting trends`;
+      
+      const claudeUrl = `https://claude.ai/chat?prompt=${encodeURIComponent(claudePrompt)}`;
+      window.open(claudeUrl, '_blank');
+    }
+  };
+
   return (
     <Card className="border-border bg-card">
       <CardHeader>
@@ -135,10 +174,28 @@ export function TransactionsList() {
               <span className="sr-only">Refresh</span>
             </Button>
 
-            <Button variant="outline" size="icon" className="h-9 w-9">
-              <Settings className="h-4 w-4" />
-              <span className="sr-only">Settings</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9" title="Export" disabled={!transactions.length}>
+                  <Download className="h-4 w-4" />
+                  <span className="sr-only">Export</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={handleExport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportToAI('chatgpt')}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Open in ChatGPT
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportToAI('claude')}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Open in Claude
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </CardHeader>

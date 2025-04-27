@@ -8,12 +8,24 @@ import { BarChart } from "@/components/ui/chart"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { api, TopProgramResponse, TopWalletResponse } from "@/lib/api"
+import { Copy, Check } from "lucide-react"
 
 export function Leaderboards() {
   const [topPrograms, setTopPrograms] = useState<TopProgramResponse[]>([])
   const [topWallets, setTopWallets] = useState<TopWalletResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
+
+  const handleCopy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(text)
+      setTimeout(() => setCopied(null), 1500)
+    } catch (err) {
+      // Optionally handle error
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -126,10 +138,21 @@ export function Leaderboards() {
                     {topPrograms.map((program, index) => (
                       <TableRow key={index}>
                         <TableCell>
-                          <div className="font-medium">
+                          <div className="font-medium flex items-center gap-2">
                             <Link href={`/programs/${program.programId}`} className="hover:text-primary hover:underline">
                               {program.programId}
                             </Link>
+                            <button
+                              className="ml-1 p-1 rounded hover:bg-muted"
+                              onClick={() => handleCopy(program.programId)}
+                              title="Copy address"
+                            >
+                              {copied === program.programId ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </button>
                           </div>
                         </TableCell>
                         <TableCell>{program.transactionCount.toLocaleString()}</TableCell>
@@ -189,10 +212,21 @@ export function Leaderboards() {
                     {topWallets.map((wallet, index) => (
                       <TableRow key={index}>
                         <TableCell>
-                          <div className="font-medium">
+                          <div className="font-medium flex items-center gap-2">
                             <Link href={`/?address=${wallet.address}&tab=Wallet Overview`} className="hover:text-primary hover:underline">
                               {wallet.address}
                             </Link>
+                            <button
+                              className="ml-1 p-1 rounded hover:bg-muted"
+                              onClick={() => handleCopy(wallet.address)}
+                              title="Copy address"
+                            >
+                              {copied === wallet.address ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </button>
                           </div>
                         </TableCell>
                         <TableCell className="text-right">{wallet.transactionCount.toLocaleString()}</TableCell>
