@@ -131,7 +131,6 @@ export function Leaderboards() {
                       <TableHead>Program</TableHead>
                       <TableHead>Transactions</TableHead>
                       <TableHead>Users</TableHead>
-                      <TableHead>Growth (7d)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -157,11 +156,6 @@ export function Leaderboards() {
                         </TableCell>
                         <TableCell>{program.transactionCount.toLocaleString()}</TableCell>
                         <TableCell>{program.uniqueUsers.toLocaleString()}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={program.growthPercentage > 0 ? "text-emerald-500" : "text-red-500"}>
-                            {program.growthPercentage > 0 ? "+" : ""}{program.growthPercentage}%
-                          </Badge>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

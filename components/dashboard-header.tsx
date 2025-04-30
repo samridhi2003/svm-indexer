@@ -21,7 +21,7 @@ export function DashboardHeader() {
             <nav className="flex flex-col gap-4 py-4">
               <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
                 <div className="h-8 w-8 rounded-full bg-primary"></div>
-                <span className="text-primary font-bold text-xl">SONIC</span>
+                <span className="text-primary font-bold text-xl">The SVM Indexer</span>
               </Link>
               <Link href="/" className="text-sm font-medium hover:underline">
                 Cluster Stats
@@ -40,8 +40,8 @@ export function DashboardHeader() {
         </Sheet>
 
         <Link href="/" className="flex items-center gap-2 text-lg font-semibold md:mr-6">
-          <div className="h-8 w-8 rounded-full bg-primary"></div>
-          <span className="text-primary font-bold text-xl">SONIC</span>
+          <img src="/logo.jpg" alt="SVM Indexer Logo" className="h-8 w-8 rounded-full" />
+          <span className="text-primary font-bold text-xl">The SVM Indexer</span>
         </Link>
 
         <div className="ml-auto">
