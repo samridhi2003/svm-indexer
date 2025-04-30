@@ -2,7 +2,7 @@
 
 # Sonic SVM Blockchain Dashboard
 
-![Sonic SVM Blockchain Dashboard](public/banner.png){width="800"}
+<img src="public/banner.png" alt="Sonic SVM Blockchain Dashboard" width="800"/>
 
 </div>
 
