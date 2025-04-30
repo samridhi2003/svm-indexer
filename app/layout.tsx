@@ -6,9 +6,15 @@ import { ThemeProvider } from "@/components/theme-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "Blockchain Analytics Dashboard",
-  description: "A comprehensive blockchain analytics dashboard",
-    generator: 'v0.dev'
+  title: "The SVM Indexer",
+  description: "A comprehensive SVM analytics dashboard",
+  openGraph: {
+    images: [
+      {
+        url: "/banner.png",
+      },
+    ],
+  },
 }
 
 export default function RootLayout({
