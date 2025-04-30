@@ -52,3 +52,13 @@
   background-color: hsl(var(--success));
   color: hsl(var(--success-foreground));
 }
+
+#__next-build-watcher,
+[data-nextjs-dialog-overlay],
+[data-nextjs-dialog],
+#__next-build-watcher-icon {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

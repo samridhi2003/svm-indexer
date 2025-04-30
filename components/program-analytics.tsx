@@ -14,7 +14,6 @@ import { Download, MessageSquare } from "lucide-react"
 
 interface ProgramUsage {
   programId: string;
-  uniqueWallets: number;
   totalTransactions: number;
   topInstructions: Array<{
     data: string;
@@ -39,7 +38,7 @@ interface TopProgramData {
 }
 
 export function ProgramAnalytics() {
-  const [programId, setProgramId] = useState("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+  const [programId, setProgramId] = useState("")
   const [programData, setProgramData] = useState<ProgramUsage | null>(null)
   const [interactions, setInteractions] = useState<ProgramInteraction[]>([])
   const [topPrograms, setTopPrograms] = useState<TopProgramData[]>([])
@@ -137,20 +136,8 @@ export function ProgramAnalytics() {
       const prompt = `Please analyze this blockchain program data and explain its key metrics, patterns, and insights:\n\n${json}`;
       window.open(`https://chat.openai.com/?prompt=${encodeURIComponent(prompt)}`, '_blank');
     } else {
-      // For Claude, we'll create a more structured prompt
-      const claudePrompt = `I have some blockchain program data that I'd like you to analyze. Here are the key metrics:\n\n` +
-        `Program ID: ${programData.programId}\n` +
-        `Total Transactions: ${programData.totalTransactions}\n` +
-        `Unique Wallets: ${programData.uniqueWallets}\n\n` +
-        `Here's the complete data in JSON format:\n\n${json}\n\n` +
-        `Please analyze this data and provide insights about:\n` +
-        `1. Transaction patterns and trends\n` +
-        `2. User engagement metrics\n` +
-        `3. Notable program activities\n` +
-        `4. Potential areas of interest or concern`;
-      
-      const claudeUrl = `https://claude.ai/chat?prompt=${encodeURIComponent(claudePrompt)}`;
-      window.open(claudeUrl, '_blank');
+      // Removing Claude option
+      return;
     }
   };
 
@@ -199,16 +186,16 @@ export function ProgramAnalytics() {
                 <Download className="mr-2 h-4 w-4" />
                 Download JSON
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportToAI('chatgpt')}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Open in ChatGPT
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportToAI('claude')}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Open in Claude
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button 
+            variant="outline" 
+            disabled={!programData}
+            onClick={() => handleExportToAI('chatgpt')}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Ask AI
+          </Button>
         </div>
       </div>
 
@@ -240,7 +227,7 @@ export function ProgramAnalytics() {
                 </div>
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">Unique Wallets</div>
-                  <div className="text-2xl font-bold">{programData.uniqueWallets.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{interactions[0].uniqueWallets.toLocaleString()}</div>
                 </div>
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">Last Activity</div>

@@ -2,14 +2,11 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Search, Menu, X } from "lucide-react"
+import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export function DashboardHeader() {
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background">
       <div className="flex h-16 items-center px-4 md:px-6">
@@ -38,9 +35,6 @@ export function DashboardHeader() {
               <Link href="/programs" className="text-sm font-medium hover:underline">
                 Inspector
               </Link>
-              <Link href="/leaderboards" className="text-sm font-medium hover:underline">
-                Blocks
-              </Link>
             </nav>
           </SheetContent>
         </Sheet>
@@ -50,33 +44,8 @@ export function DashboardHeader() {
           <span className="text-primary font-bold text-xl">SONIC</span>
         </Link>
 
-        <nav className="hidden md:flex md:gap-6 lg:gap-8">
-          <Link href="/leaderboards" className="text-sm font-medium hover:text-primary">
-            Blocks
-          </Link>
-        </nav>
-
-        <div className="ml-auto flex items-center gap-2">
-          {isSearchOpen ? (
-            <div className="relative flex items-center">
-              <Input
-                type="search"
-                placeholder="Search for blocks, accounts, transactions, programs, and tokens"
-                className="w-[200px] md:w-[400px] lg:w-[500px] bg-card border-border"
-              />
-              <Button variant="ghost" size="icon" className="absolute right-0" onClick={() => setIsSearchOpen(false)}>
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close search</span>
-              </Button>
-            </div>
-          ) : (
-            <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
-              <Search className="h-5 w-5" />
-              <span className="sr-only">Search</span>
-            </Button>
-          )}
-
-          <Button className="bg-primary text-white rounded-md ml-2">Testnet V1</Button>
+        <div className="ml-auto">
+          <Button className="bg-primary text-white rounded-md">Mainnet</Button>
         </div>
       </div>
     </header>

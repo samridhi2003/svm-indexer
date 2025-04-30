@@ -18,14 +18,24 @@ interface WalletData {
   lamports: string;
   usdValue: string;
   tokens: Array<{
-    name: string;
-    amount: string;
-    value: string;
     mint: string;
+    amount: number;
+    decimals: number;
   }>;
   count: number;
   firstActivity: string;
   lastActivity: string;
+}
+
+interface TokenTransfer {
+  signature: string;
+  blockTime: string;
+  transfers: Array<{
+    mint?: string;
+    amount?: string;
+    value?: string;
+    name?: string;
+  }>;
 }
 
 const formatAmount = (lamports: string) => {
@@ -38,7 +48,7 @@ export function WalletOverview() {
   const [address, setAddress] = useState("")
   const [walletData, setWalletData] = useState<WalletData | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [tokenTransfers, setTokenTransfers] = useState<any[]>([])
+  const [tokenTransfers, setTokenTransfers] = useState<TokenTransfer[]>([])
   const [count, setCount] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -105,7 +115,10 @@ export function WalletOverview() {
         console.log('Recent transactions:', recentTransactions)
         
         setTransactions(recentTransactions)
-        setCount(response.total)
+
+        const count_response = await api.getWalletTransactionCount(address)
+
+        setCount(count_response.count)
       } catch (error) {
         console.error('Error fetching transactions:', error)
         setTransactions([])
@@ -122,7 +135,6 @@ export function WalletOverview() {
     }
   }
 
-  // Process transactions for activity chart
   const processActivityData = () => {
     if (!transactions?.length) {
       console.log('No transactions to process')
@@ -163,40 +175,47 @@ export function WalletOverview() {
     return result
   }
 
-  const processBalanceData = () => {
-    if (!walletData?.lamports) return []
-    
-    const balanceData = []
-    const currentBalance = parseFloat(walletData.lamports) / 1e9
-    
-    // Generate last 7 days of data
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date()
-      date.setDate(date.getDate() - i)
-      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      
-      // For now, we'll show the same balance for all days since we don't have historical data
-      // In a real app, you would fetch historical balance data from your API
-      balanceData.push({
-        date: dateStr,
-        value: currentBalance
-      })
-    }
-    
-    return balanceData
-  }
-
   const activityData = processActivityData()
 
-  const bubbleData = walletData?.tokens.map((token, idx) => ({
+  // Process token transfers into a format suitable for display
+  const processTokenData = () => {
+    const tokens = [];
+    
+    // Add SOL if wallet data exists
+    if (walletData?.lamports) {
+      const solAmount = (parseFloat(walletData.lamports) / 1e9).toString(); // Convert lamports to SOL
+      tokens.push({
+        mint: "So11111111111111111111111111111111111111112", // Native SOL mint address
+        amount: solAmount,
+        value: walletData.usdValue?.replace(/[^0-9.]/g, "") || "0",
+        name: "SOL"
+      });
+    }
+
+    // Process other tokens from wallet data
+    if (walletData?.tokens?.length) {
+      walletData.tokens.forEach(token => {
+        tokens.push({
+          mint: token.mint,
+          amount: token.amount.toString(),
+          value: "0", // Value not provided in new format
+          name: token.mint.slice(0, 8) + '...'
+        });
+      });
+    }
+
+    return tokens;
+  };
+
+  const tokens = processTokenData();
+  const bubbleData = tokens.map((token, idx) => ({
     x: idx + 1,
-    y: parseFloat(String(token.value ?? 0).replace(/[^0-9.]/g, "")) || 0,
+    y: parseFloat(String(token.amount ?? 0).replace(/[^0-9.]/g, "")) || 0,
     z: parseFloat(String(token.amount ?? 0).replace(/[^0-9.]/g, "")) || 0,
-    name: token.name || token.mint,
+    name: token.name,
     mint: token.mint,
-    amount: String(token.amount ?? 0),
-    value: String(token.value ?? 0),
-  })) || [];
+    amount: String(token.amount ?? 0)
+  }));
 
   function BubbleMapChart() {
     if (!bubbleData.length) {
@@ -206,7 +225,7 @@ export function WalletOverview() {
       <ResponsiveContainer width="100%" height={300}>
         <ScatterChart>
           <XAxis dataKey="x" name="Token Index" tick={false} />
-          <YAxis dataKey="y" name="Value" />
+          <YAxis dataKey="y" name="Amount" />
           <ZAxis dataKey="z" range={[60, 400]} name="Amount" />
           <Tooltip 
             cursor={{ strokeDasharray: '3 3' }}
@@ -218,7 +237,6 @@ export function WalletOverview() {
                     <div><b>{d.name}</b></div>
                     <div>Mint: {d.mint}</div>
                     <div>Amount: {d.amount}</div>
-                    <div>Value: {d.value}</div>
                   </div>
                 );
               }
@@ -299,16 +317,16 @@ export function WalletOverview() {
                 <Download className="mr-2 h-4 w-4" />
                 Download JSON
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportToAI('chatgpt')}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Open in ChatGPT
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportToAI('claude')}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Open in Claude
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button 
+            variant="outline" 
+            disabled={!walletData}
+            onClick={() => handleExportToAI('chatgpt')}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Ask AI
+          </Button>
         </div>
       </div>
 
@@ -356,38 +374,12 @@ export function WalletOverview() {
             </Card>
           </div>
 
-          <Tabs defaultValue="balance">
+          <Tabs defaultValue="activity">
             <TabsList>
-              <TabsTrigger value="balance">Balance History</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
               <TabsTrigger value="tokens">Tokens</TabsTrigger>
               <TabsTrigger value="bubble">Bubble Map</TabsTrigger>
             </TabsList>
-            <TabsContent value="balance">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Balance History</CardTitle>
-                  <CardDescription>SOL balance over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    {walletData?.lamports && (
-                      <AreaChart
-                        data={processBalanceData()}
-                        index="date"
-                        categories={["value"]}
-                        colors={["#10b981"]}
-                        valueFormatter={(value) => `${value.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL`}
-                        showLegend={false}
-                        showGridLines={true}
-                        startEndOnly={false}
-                        className="h-full"
-                      />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
             <TabsContent value="activity">
               <Card>
                 <CardHeader>
@@ -411,7 +403,7 @@ export function WalletOverview() {
                           showGridLines={true}
                           startEndOnly={false}
                           layout="horizontal"
-                          className="h-full"
+                          className="h-full [&>div>div]:!bg-transparent [&_.recharts-cartesian-grid-bg]:!fill-transparent [&_.recharts-tooltip-cursor]:!fill-transparent [&_.recharts-default-tooltip]:!bg-background"
                         />
                       </>
                     ) : (
@@ -435,19 +427,28 @@ export function WalletOverview() {
                       <div>MINT ADDRESS</div>
                       <div>TOTAL BALANCE</div>
                     </div>
-                    {walletData.tokens.map((token, index) => (
-                      <div key={index} className="flex items-center justify-between border-b border-border/40 pb-2 last:border-0">
-                        <div className="flex items-center gap-2">
-                          <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M3 21h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2M3 9h18M3 15h18" />
-                          </svg>
-                          <span className="text-blue-400">{token.mint}</span>
+                    {tokens.length > 0 ? (
+                      tokens.map((token, index) => (
+                        <div key={index} className="flex items-center justify-between border-b border-border/40 pb-2 last:border-0">
+                          <div className="flex items-center gap-2">
+                            <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M3 21h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2M3 9h18M3 15h18" />
+                            </svg>
+                            <span className="text-blue-400">{token.mint}</span>
+                          </div>
+                          <div>
+                            <div className="font-medium">{token.amount}</div>
+                            {token.name !== token.mint && (
+                              <div className="text-xs text-muted-foreground">{token.name}</div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium">{token.amount}</div>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-muted-foreground py-4">
+                        No tokens found in this wallet
                       </div>
-                    ))}
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -456,7 +457,7 @@ export function WalletOverview() {
               <Card>
                 <CardHeader>
                   <CardTitle>Token Bubble Map</CardTitle>
-                  <CardDescription>Each bubble represents a token. Size = amount, Y = value.</CardDescription>
+                  <CardDescription>Each bubble represents a token. Size and Y-axis both represent amount.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <BubbleMapChart />

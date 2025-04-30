@@ -2,15 +2,13 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Calendar, ExternalLink, Filter, Search, RefreshCw, Download, MessageSquare } from "lucide-react"
+import { ExternalLink, Search, RefreshCw, Download, MessageSquare } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { api } from "@/lib/api"
 import type { Transaction } from "@/lib/api"
 
@@ -25,7 +23,6 @@ export function TransactionsList() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [timeFilter, setTimeFilter] = useState<Date | undefined>(undefined)
 
   const fetchTransactions = async () => {
     try {
@@ -77,15 +74,9 @@ export function TransactionsList() {
     fetchTransactions()
   }, [])
 
-  // Filter transactions based on time filter only
+  // Filter transactions based on search only
   const filteredTransactions = transactions.filter((tx) => {
-    if (timeFilter) {
-      const txDate = new Date(Number(tx.blockTime) * 1000)
-      if (txDate.toDateString() !== timeFilter.toDateString()) {
-        return false
-      }
-    }
-    return true
+    return true;
   })
 
   const handleRefresh = () => {
@@ -157,18 +148,6 @@ export function TransactionsList() {
               />
             </div>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {timeFilter ? timeFilter.toLocaleDateString() : "Date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <CalendarComponent mode="single" selected={timeFilter} onSelect={setTimeFilter} initialFocus />
-              </PopoverContent>
-            </Popover>
-
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleRefresh}>
               <RefreshCw className="h-4 w-4" />
               <span className="sr-only">Refresh</span>
@@ -186,16 +165,20 @@ export function TransactionsList() {
                   <Download className="mr-2 h-4 w-4" />
                   Download JSON
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExportToAI('chatgpt')}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Open in ChatGPT
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExportToAI('claude')}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Open in Claude
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-9 w-9" 
+              title="Ask AI" 
+              disabled={!transactions.length}
+              onClick={() => handleExportToAI('chatgpt')}
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="sr-only">Ask AI</span>
+            </Button>
           </div>
         </div>
       </CardHeader>

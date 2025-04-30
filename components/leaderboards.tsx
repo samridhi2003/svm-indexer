@@ -113,7 +113,7 @@ export function Leaderboards() {
                     showGridLines={true}
                     startEndOnly={true}
                     layout="horizontal"
-                    className="h-full"
+                    className="h-full [&>div>div]:!bg-transparent [&_.recharts-cartesian-grid-bg]:!fill-transparent [&_.recharts-tooltip-cursor]:!fill-transparent [&_.recharts-default-tooltip]:!bg-background"
                   />
                 </div>
               </CardContent>
@@ -189,7 +189,7 @@ export function Leaderboards() {
                     showGridLines={true}
                     startEndOnly={true}
                     layout="horizontal"
-                    className="h-full"
+                    className="h-full [&>div>div]:!bg-transparent [&_.recharts-cartesian-grid-bg]:!fill-transparent [&_.recharts-tooltip-cursor]:!fill-transparent [&_.recharts-default-tooltip]:!bg-background"
                   />
                 </div>
               </CardContent>
